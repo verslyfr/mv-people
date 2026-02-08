@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / Packaging
+build/
+dist/
+*.egg-info/
+
+# PyInstaller
+#  Usually these are temporary/artifacts, but we are keeping the spec file as it is customized.
+#  *.spec
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+tests/test-archive/
+
+# Project specific
+archive/
+# models/yolov3-tiny.weights - Keeping this in git as it is < 50MB and required for the app.
+# We might want to keep the config but ignore the heavy weights file? 
+# The code expects models/yolov3-tiny.weights. 
+# If it's a large file (likely), it shouldn't be in git unless using LFS.
+# For now I will ignore the weights file.
+
+# UV
+# uv.lock is usually good to commit for applications to ensure reproducible builds

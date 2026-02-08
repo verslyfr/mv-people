@@ -23,7 +23,14 @@ console = Console()
     help="Root directory for preserving folder structure in archive",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
 )
-def scan(folder, archive_dir, root):
+@click.option(
+    "-R",
+    "--recursive",
+    is_flag=True,
+    default=False,
+    help="Recursively scan subdirectories",
+)
+def scan(folder, archive_dir, root, recursive):
     """
     Scans a folder for images containing people and asks to archive them.
     """
@@ -39,6 +46,11 @@ def scan(folder, archive_dir, root):
             )
             return
 
+    # If recursive is on and root is NOT provided, default root to the folder being scanned
+    # so we preserve structure relative to the start folder.
+    if recursive and not root:
+        root = folder
+
     # Ensure archive directory exists
     archive_dir.mkdir(parents=True, exist_ok=True)
 
@@ -49,10 +61,15 @@ def scan(folder, archive_dir, root):
 
     # Gather files
     try:
+        if recursive:
+            iterator = folder.rglob("*")
+        else:
+            iterator = folder.iterdir()
+
         files = sorted(
             [
                 f
-                for f in folder.iterdir()
+                for f in iterator
                 if f.is_file() and f.suffix.lower() in image_extensions
             ]
         )

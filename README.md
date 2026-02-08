@@ -39,6 +39,7 @@ Scan a folder and move archived images to a default `./archive` folder:
 - `FOLDER`: The folder to scan for images (Required).
 - `--archive-dir PATH`: Directory to move archived images to. Defaults to `./archive` in the current directory.
 - `--root DIRECTORY`: Root directory for preserving folder structure in the archive.
+- `-R`, `--recursive`: Recursively scan subdirectories.
 
 ### Advanced Usage
 Specify an archive directory and a root directory to preserve folder structure:

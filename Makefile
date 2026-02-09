@@ -1,10 +1,11 @@
-.PHONY: all setup-venv run test clean build-exe help
+.PHONY: all setup-venv run test clean build-exe install help
 
 # Project settings
 PROJECT_NAME = mv-people
 # Default to ~/venvs, but allow override
 VENV_BASE ?= $(HOME)/venvs
 VENV_DIR = $(VENV_BASE)/$(PROJECT_NAME)
+INSTALL_DIR ?= $(HOME)/.local/bin
 
 .DEFAULT_GOAL := help
 
@@ -37,6 +38,12 @@ test: ## Run tests
 
 build-exe: setup-venv ## Build a standalone Linux executable using PyInstaller
 	uv run pyinstaller mv-people.spec
+
+install: build-exe ## Install the executable to ~/.local/bin
+	@mkdir -p $(INSTALL_DIR)
+	@echo "Installing mv-people to $(INSTALL_DIR)..."
+	@cp dist/mv-people $(INSTALL_DIR)/mv-people
+	@echo "Installation complete."
 
 clean: ## Clean up virtual environment, cache, and build artifacts
 	rm -rf .venv

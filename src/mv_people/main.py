@@ -12,6 +12,7 @@ console = Console()
 
 
 @click.command()
+@click.version_option(version="0.1.0")
 @click.argument("folder", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
     "--archive-dir",

@@ -7,12 +7,20 @@ from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from .detector import PersonDetector, init_worker, process_file
 from .viewer import TerminalViewer
+from importlib.metadata import version, PackageNotFoundError
 
 console = Console()
 
 
+def get_version():
+    try:
+        return version("mv-people")
+    except PackageNotFoundError:
+        return "unknown"
+
+
 @click.command()
-@click.version_option(version="0.1.0")
+@click.version_option(version=get_version())
 @click.argument("folder", type=click.Path(exists=True, file_okay=False, path_type=Path))
 @click.option(
     "--archive-dir",

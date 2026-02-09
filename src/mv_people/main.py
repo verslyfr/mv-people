@@ -1,9 +1,11 @@
 import os
 import shutil
 import click
+import multiprocessing
 from pathlib import Path
 from rich.console import Console
-from .detector import PersonDetector
+from rich.progress import Progress, SpinnerColumn, TextColumn
+from .detector import PersonDetector, init_worker, process_file
 from .viewer import TerminalViewer
 
 console = Console()
@@ -54,7 +56,6 @@ def scan(folder, archive_dir, root, recursive):
     # Ensure archive directory exists
     archive_dir.mkdir(parents=True, exist_ok=True)
 
-    detector = PersonDetector()
     viewer = TerminalViewer()
 
     image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff"}
@@ -82,64 +83,103 @@ def scan(folder, archive_dir, root, recursive):
         return
 
     console.print(
-        f"[bold green]Found {len(files)} images. Starting scan...[/bold green]"
+        f"[bold green]Found {len(files)} images. Starting scan with {max(1, multiprocessing.cpu_count())} workers...[/bold green]"
     )
 
-    for filepath in files:
-        with console.status(f"[bold blue]Analyzing {filepath.name}...[/bold blue]"):
-            has_people = detector.contains_people(str(filepath))
+    # Convert paths to strings for multiprocessing
+    file_paths = [str(f) for f in files]
 
-        if has_people:
-            console.print(f"\n[bold cyan]Found person in: {filepath.name}[/bold cyan]")
+    # Multiprocessing Pool
+    # Reserve one cpu for the main thread/UI
+    num_workers = max(1, multiprocessing.cpu_count() - 1)
 
-            # Display image in terminal
-            viewer.display(str(filepath))
+    with multiprocessing.Pool(processes=num_workers, initializer=init_worker) as pool:
+        # Use imap to yield results as they complete.
+        # chunksize=1 keeps it responsive but might have slight overhead.
+        # For image processing (slow), overhead is negligible.
+        results_iter = pool.imap(process_file, file_paths, chunksize=1)
 
-            # Interactive Prompt
-            console.print("\n\n")  # Two blank lines as requested
-            console.print(
-                r"[bold yellow]Action (\[k]eep, \[a]rchive, \[q]uit): [/bold yellow]",
-                end="",
-            )
+        # We wrap iteration in a try/except for KeyboardInterrupt or other errors
+        try:
+            # Progress bar for scanning?
+            # Since we are iterating and might pause for user input, a continuous progress bar
+            # might get messed up by the interactive prompts.
+            # Instead, we just show a status when waiting for the *next* hit.
 
-            while True:
-                char = click.getchar()
-                if char.lower() in ["k", "a", "q"]:
-                    break
+            with console.status(
+                "[bold blue]Scanning for people...[/bold blue]"
+            ) as status:
+                for filepath_str, has_people in results_iter:
+                    status.update(
+                        f"[bold blue]Scanning... (Processed: {Path(filepath_str).name})[/bold blue]"
+                    )
 
-            # Handle Action
-            if char.lower() == "a":
-                console.print("Archive")
+                    if has_people:
+                        # Clear status or print over it?
+                        # Rich status context manager clears itself on exit, but we are inside the loop.
+                        # We can just print. The status will repaint on next update.
+                        # Actually, we should temporarily stop the status to ask for input.
+                        status.stop()
 
-                # Determine destination
-                if root:
-                    # Preserve structure relative to root
-                    rel_path = filepath.relative_to(root)
-                    dest = archive_dir / rel_path
-                else:
-                    # Flat structure (or simple move)
-                    dest = archive_dir / filepath.name
+                        filepath = Path(filepath_str)
+                        console.print(
+                            f"\n[bold cyan]Found person in: {filepath.name}[/bold cyan]"
+                        )
 
-                # Ensure dest dir exists
-                dest.parent.mkdir(parents=True, exist_ok=True)
+                        # Display image in terminal
+                        viewer.display(filepath_str)
 
-                try:
-                    shutil.move(str(filepath), str(dest))
-                    console.print(f"[red]Archived to {dest}[/red]")
-                except Exception as e:
-                    console.print(f"[bold red]Failed to archive:[/bold red] {e}")
+                        # Interactive Prompt
+                        console.print("\n\n")
+                        console.print(
+                            r"[bold yellow]Action (\[k]eep, \[a]rchive, \[q]uit): [/bold yellow]",
+                            end="",
+                        )
 
-            elif char.lower() == "k":
-                console.print("Keep")
-                console.print("[green]Kept.[/green]")
-            elif char.lower() == "q":
-                console.print("Quit")
-                console.print("[bold red]Exiting...[/bold red]")
-                return
-        else:
-            # Optional: Log that no person was found
-            pass
+                        while True:
+                            char = click.getchar()
+                            if char.lower() in ["k", "a", "q"]:
+                                break
+
+                        # Handle Action
+                        if char.lower() == "a":
+                            console.print("Archive")
+
+                            # Determine destination
+                            if root:
+                                rel_path = filepath.relative_to(root)
+                                dest = archive_dir / rel_path
+                            else:
+                                dest = archive_dir / filepath.name
+
+                            dest.parent.mkdir(parents=True, exist_ok=True)
+
+                            try:
+                                shutil.move(str(filepath), str(dest))
+                                console.print(f"[red]Archived to {dest}[/red]")
+                            except Exception as e:
+                                console.print(
+                                    f"[bold red]Failed to archive:[/bold red] {e}"
+                                )
+
+                        elif char.lower() == "k":
+                            console.print("Keep")
+                            console.print("[green]Kept.[/green]")
+                        elif char.lower() == "q":
+                            console.print("Quit")
+                            console.print("[bold red]Exiting...[/bold red]")
+                            pool.terminate()
+                            return
+
+                        # Restart status for next iteration
+                        status.start()
+
+        except KeyboardInterrupt:
+            console.print("\n[bold red]Scan interrupted.[/bold red]")
+            pool.terminate()
+            pool.join()
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     scan()

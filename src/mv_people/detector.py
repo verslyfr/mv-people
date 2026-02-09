@@ -1,8 +1,29 @@
 import cv2
 import numpy as np
 import os
-
 import sys
+
+# Global variable to hold the detector instance in worker processes
+_worker_detector = None
+
+
+def init_worker():
+    """
+    Initializes the PersonDetector in the worker process.
+    """
+    global _worker_detector
+    _worker_detector = PersonDetector()
+
+
+def process_file(filepath):
+    """
+    Process a single file using the worker's detector instance.
+    Returns (filepath, has_people).
+    """
+    if _worker_detector is None:
+        raise RuntimeError("Worker detector not initialized")
+
+    return filepath, _worker_detector.contains_people(filepath)
 
 
 class PersonDetector:
@@ -57,9 +78,6 @@ class PersonDetector:
 
             # Scan through all the bounding boxes output from the network and keep only the
             # ones with high confidence scores. Assign the box's class label as the class with the highest score.
-            class_ids = []
-            confidences = []
-
             for out in outs:
                 for detection in out:
                     scores = detection[5:]

@@ -13,6 +13,7 @@ dist/
 #  *.spec
 
 # Virtual Environments
+.venv
 .venv/
 venv/
 ENV/

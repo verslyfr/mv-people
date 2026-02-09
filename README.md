@@ -8,6 +8,8 @@ A CLI tool to scan a folder for images containing people and interactively decid
 - **Terminal Integration**: Displays images directly in the terminal using Sixel protocol (requires a compatible terminal like Kitty, iTerm2, WezTerm, etc., and `img2sixel`).
 - **Interactive Workflow**: Quickly decide to **[k]eep** or **[a]rchive** images with single keystrokes.
 - **Context Preservation**: Use the `--root` option to maintain the folder structure when archiving.
+- **Smart History**: Remembers processed folders to allow resuming interrupted scans without re-doing work.
+- **Special Folder Handling**: Automatically archives `.picasaoriginals` and `.original` folders without scanning, preserving structure.
 
 ## Prerequisites
 

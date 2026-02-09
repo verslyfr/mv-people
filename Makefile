@@ -1,4 +1,4 @@
-.PHONY: all install run test clean build build-exe
+.PHONY: all setup-venv run test clean build-exe help
 
 # Project settings
 PROJECT_NAME = mv-people
@@ -6,11 +6,14 @@ PROJECT_NAME = mv-people
 VENV_BASE ?= $(HOME)/venvs
 VENV_DIR = $(VENV_BASE)/$(PROJECT_NAME)
 
-# Default target
-all: install
+.DEFAULT_GOAL := help
 
-# Install dependencies using uv
-install:
+help: ## Targets for this Makefile
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+all: build-exe ## Default target: build the standalone executable
+
+setup-venv: ## Set up external virtual environment and install dependencies
 	@echo "Setting up virtual environment in $(VENV_DIR)..."
 	@mkdir -p $(VENV_BASE)
 	@# Create venv if it doesn't exist
@@ -26,25 +29,16 @@ install:
 	@echo "Installing dependencies with uv..."
 	uv sync
 
-# Run the tool
-# Usage: make run ARGS="path/to/images --archive-dir ./archive"
-run:
+run: ## Run the tool. Usage: make run ARGS="path/to/images ..."
 	uv run mv-people $(ARGS)
 
-# Run tests
-test:
+test: ## Run tests
 	uv run pytest
 
-# Build the Python package (wheel)
-build:
-	uv build
-
-# Build a standalone Linux executable using PyInstaller
-build-exe:
+build-exe: setup-venv ## Build a standalone Linux executable using PyInstaller
 	uv run pyinstaller mv-people.spec
 
-# Clean up virtual environment, cache, and build artifacts
-clean:
+clean: ## Clean up virtual environment, cache, and build artifacts
 	rm -rf .venv
 	rm -rf build dist
 	rm -rf __pycache__
